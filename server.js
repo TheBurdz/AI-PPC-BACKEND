@@ -1,3 +1,14 @@
+const express = require('express');
+const axios = require('axios');
+const cors = require('cors');
+require('dotenv').config();
+
+const app = express();
+const PORT = process.env.PORT || 10000; // Default to port 10000 if not set
+
+app.use(express.json());
+app.use(cors());
+
 app.post('/analyze-ppc', async (req, res) => {
     try {
         const ppcData = req.body;
@@ -36,7 +47,7 @@ app.post('/analyze-ppc', async (req, res) => {
         const runResponse = await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/runs`,
             {
-                assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo"
+                assistant_id: "g-67d0cbfcf9488191afeb8bf44673fb55"
             },
             {
                 headers: {
@@ -97,4 +108,10 @@ app.post('/analyze-ppc', async (req, res) => {
         console.error("❌ Error in AI Processing:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
+});
+
+
+// ✅ Step 6: Start the server
+app.listen(PORT, () => {
+    console.log(`✅ AI PPC Backend is running on port ${PORT}`);
 });
