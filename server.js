@@ -18,7 +18,7 @@ app.get('/', (req, res) => {
 // 🔹 API Route to Analyze PPC Data
 app.post('/analyze-ppc', async (req, res) => {
     try {
-        const ppcData = req.body;  // Receive data from the Chrome Extension
+        const ppcData = req.body;
 
         const openAIResponse = await axios.post(
             'https://api.openai.com/v1/chat/completions',
@@ -32,18 +32,20 @@ app.post('/analyze-ppc', async (req, res) => {
             },
             {
                 headers: {
-                    "Authorization": `Bearer ${OPENAI_API_KEY}`,
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
                     "Content-Type": "application/json"
                 }
             }
         );
 
         res.json({ insights: openAIResponse.data.choices[0].message.content });
+
     } catch (error) {
-        console.error("Error in AI Processing:", error);
-        res.status(500).json({ error: "AI processing failed." });
+        console.error("Error in AI Processing:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
+
 
 // 🔹 Use Render’s Dynamic Port
 const PORT = process.env.PORT || 10000; // Fallback to 10000
