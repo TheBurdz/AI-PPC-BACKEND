@@ -132,6 +132,7 @@ app.post('/analyze-ppc', async (req, res) => {
 
         let threadId = userThreads[userId];
 
+        // Create new thread if it doesn't exist
         if (!threadId) {
             const threadResponse = await axios.post(
                 'https://api.openai.com/v1/threads',
@@ -148,7 +149,41 @@ app.post('/analyze-ppc', async (req, res) => {
             userThreads[userId] = threadId;
         }
 
-        // Add PPC Data to AI thread
+        // ✅ Step 1: Check for active runs
+        const activeRunsResponse = await axios.get(
+            `https://api.openai.com/v1/threads/${threadId}/runs`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+
+        const activeRun = activeRunsResponse.data.data.find(run => run.status === "in_progress");
+
+        if (activeRun) {
+            console.log("⏳ Waiting for existing AI run to finish...");
+            let runStatus = "in_progress";
+            while (runStatus === "in_progress") {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                const statusResponse = await axios.get(
+                    `https://api.openai.com/v1/threads/${threadId}/runs/${activeRun.id}`,
+                    {
+                        headers: {
+                            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                            "Content-Type": "application/json",
+                            "OpenAI-Beta": "assistants=v2"
+                        }
+                    }
+                );
+                runStatus = statusResponse.data.status;
+            }
+            console.log("✅ Previous AI run completed.");
+        }
+
+        // ✅ Step 2: Add PPC Data to AI thread
         await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
@@ -164,6 +199,7 @@ app.post('/analyze-ppc', async (req, res) => {
             }
         );
 
+        // ✅ Step 3: Start a new AI processing run
         const runResponse = await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/runs`,
             { assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo" },
@@ -179,6 +215,7 @@ app.post('/analyze-ppc', async (req, res) => {
         const runId = runResponse.data.id;
         let runStatus = "in_progress";
 
+        // ✅ Step 4: Wait for completion
         while (runStatus === "in_progress") {
             await new Promise(resolve => setTimeout(resolve, 2000));
             const statusResponse = await axios.get(
@@ -194,6 +231,7 @@ app.post('/analyze-ppc', async (req, res) => {
             runStatus = statusResponse.data.status;
         }
 
+        // ✅ Step 5: Retrieve Messages from AI Thread
         const messagesResponse = await axios.get(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
@@ -224,6 +262,7 @@ app.post('/analyze-ppc', async (req, res) => {
         res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
+
 
 
 
