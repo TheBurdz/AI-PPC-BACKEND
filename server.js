@@ -119,102 +119,29 @@ const conversationThreads = {}; // Store thread IDs by user session
 
 app.post('/analyze-ppc', async (req, res) => {
     try {
+        console.log("📩 Received API Request:", JSON.stringify(req.body, null, 2)); // Log received request
+
         const { summary, userId } = req.body;
 
         if (!userId) {
+            console.error("🚨 Missing userId in request!");
             return res.status(400).json({ error: "Missing userId" });
         }
 
-        let threadId = conversationThreads[userId];
-
-        if (!threadId) {
-            const threadResponse = await axios.post(
-                'https://api.openai.com/v1/threads',
-                {},
-                {
-                    headers: {
-                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "OpenAI-Beta": "assistants=v2"
-                    }
-                }
-            );
-            threadId = threadResponse.data.id;
-            conversationThreads[userId] = threadId;
+        if (!summary || Object.keys(summary).length === 0) {
+            console.error("🚨 Missing or empty summary data!");
+            return res.status(400).json({ error: "Missing summary data" });
         }
 
-        await axios.post(
-            `https://api.openai.com/v1/threads/${threadId}/messages`,
-            {
-                role: "user",
-                content: `Analyze this PPC campaign data: ${JSON.stringify(summary)}`
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
-
-        const runResponse = await axios.post(
-            `https://api.openai.com/v1/threads/${threadId}/runs`,
-            {
-                assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo"
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
-
-        const runId = runResponse.data.id;
-
-        let runStatus = "in_progress";
-        while (runStatus === "in_progress") {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const statusResponse = await axios.get(
-                `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
-                {
-                    headers: {
-                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "OpenAI-Beta": "assistants=v2"
-                    }
-                }
-            );
-            runStatus = statusResponse.data.status;
-        }
-
-        const messagesResponse = await axios.get(
-            `https://api.openai.com/v1/threads/${threadId}/messages`,
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
-
-        const aiResponse = messagesResponse.data.data
-            .filter(msg => msg.role === "assistant")
-            .map(msg => msg.content)
-            .flat()
-            .map(content => content.text?.value || "")
-            .join("\n");
-
-        res.json({ insights: aiResponse });
+        // Proceed with AI processing...
+        res.json({ message: "Data received successfully" });
 
     } catch (error) {
-        console.error("❌ AI Processing Error:", error.response ? error.response.data : error.message);
+        console.error("❌ Server Processing Error:", error);
         res.status(500).json({ error: "AI processing failed." });
     }
 });
+
 
 
 
