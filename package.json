@@ -1,0 +1,15 @@
+{
+  "name": "ai-ppc-backend",
+  "version": "1.0.0",
+  "description": "Backend relay server for AI-powered PPC Chrome Extension",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.3.5",
+    "dotenv": "^16.0.3"
+  }
+}
