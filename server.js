@@ -1,16 +1,17 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require("cors");
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"]
-}));
 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 10000; // Default to port 10000 if not set
+
+app.use(cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"]
+}));
 
 app.use(express.json());
 
