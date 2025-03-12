@@ -126,14 +126,12 @@ app.post('/analyze-ppc', async (req, res) => {
     try {
         const { userId, summary, campaigns } = req.body;
 
-        if (!userId) {
-            return res.status(400).json({ error: "Missing userId" });
+        if (!userId || !summary || !campaigns) {
+            return res.status(400).json({ error: "Missing userId, summary, or campaigns in request." });
         }
 
-        // Check if user already has a thread
         let threadId = userThreads[userId];
 
-        // If no thread exists, create a new one
         if (!threadId) {
             const threadResponse = await axios.post(
                 'https://api.openai.com/v1/threads',
@@ -147,17 +145,15 @@ app.post('/analyze-ppc', async (req, res) => {
                 }
             );
             threadId = threadResponse.data.id;
-            userThreads[userId] = threadId; // Save the thread ID for later use
+            userThreads[userId] = threadId;
         }
 
-        console.log(`🧵 User ${userId} Thread ID: ${threadId}`);
-
-        // Add PPC Data to thread (if not already added)
+        // Add PPC Data to AI thread
         await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
                 role: "user",
-                content: `Here is the PPC campaign data for analysis: ${JSON.stringify({ summary, campaigns })}`
+                content: `Analyze this PPC campaign data: ${JSON.stringify({ summary, campaigns })}`
             },
             {
                 headers: {
@@ -168,12 +164,9 @@ app.post('/analyze-ppc', async (req, res) => {
             }
         );
 
-        // Run Assistant for initial PPC analysis
         const runResponse = await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/runs`,
-            {
-                assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo"
-            },
+            { assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo" },
             {
                 headers: {
                     "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -186,7 +179,6 @@ app.post('/analyze-ppc', async (req, res) => {
         const runId = runResponse.data.id;
         let runStatus = "in_progress";
 
-        // Poll for AI completion
         while (runStatus === "in_progress") {
             await new Promise(resolve => setTimeout(resolve, 2000));
             const statusResponse = await axios.get(
@@ -202,7 +194,6 @@ app.post('/analyze-ppc', async (req, res) => {
             runStatus = statusResponse.data.status;
         }
 
-        // Retrieve AI Response
         const messagesResponse = await axios.get(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
@@ -226,10 +217,10 @@ app.post('/analyze-ppc', async (req, res) => {
             return content.text?.value || "";
         }).join("\n");
 
-        res.json({ insights: aiTextResponses, threadId });
+        res.json({ insights: aiTextResponses });
 
     } catch (error) {
-        console.error("❌ Error in AI Processing:", error.response ? error.response.data : error.message);
+        console.error("❌ AI Processing Error:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
