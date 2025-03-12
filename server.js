@@ -21,7 +21,7 @@ app.post('/analyze-ppc', async (req, res) => {
         const ppcData = req.body;
 
         const openAIResponse = await axios.post(
-            'https://api.openai.com/v1/assistants/asst_fpGZKkTQYwZ94o0DxGAm89mo/messages',
+            'https://api.openai.com/v1/assistants/asst_fpGZKkTQYwZ94o0DxGAm89mo',
             {
                 model: "gpt-4o",
                 messages: [
