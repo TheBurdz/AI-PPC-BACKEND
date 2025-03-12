@@ -139,8 +139,6 @@ app.listen(PORT, () => {
     console.log(`✅ AI PPC Backend is running on port ${PORT}`);
 });
 
-const axios = require("axios");
-
 // 🔹 AI Chat Processing Function
 async function processChat(userMessage) {
     try {
