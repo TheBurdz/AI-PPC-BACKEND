@@ -23,7 +23,7 @@ app.post('/analyze-ppc', async (req, res) => {
         const openAIResponse = await axios.post(
             'https://api.openai.com/v1/chat/completions',
             {
-                model: "gpt-4-turbo",
+                model: "gpt-4o",
                 messages: [
                     { role: "system", content: "You are an expert Amazon PPC strategist." },
                     { role: "user", content: `Analyze this PPC campaign data and provide insights: ${JSON.stringify(ppcData)}` }
