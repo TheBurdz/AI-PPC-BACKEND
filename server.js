@@ -119,28 +119,114 @@ const conversationThreads = {}; // Store thread IDs by user session
 
 app.post('/analyze-ppc', async (req, res) => {
     try {
-        console.log("📩 Received API Request:", JSON.stringify(req.body, null, 2)); // Log received request
+        const { userId, summary } = req.body;
 
-        const { summary, userId } = req.body;
-
-        if (!userId) {
-            console.error("🚨 Missing userId in request!");
-            return res.status(400).json({ error: "Missing userId" });
+        if (!userId || !summary) {
+            return res.status(400).json({ error: "Missing required data." });
         }
 
-        if (!summary || Object.keys(summary).length === 0) {
-            console.error("🚨 Missing or empty summary data!");
-            return res.status(400).json({ error: "Missing summary data" });
+        console.log("📡 Received PPC Data for Analysis:", JSON.stringify(summary, null, 2));
+
+        // 🧠 Send data to OpenAI Assistant
+        const threadResponse = await axios.post(
+            'https://api.openai.com/v1/threads',
+            {},
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+        const threadId = threadResponse.data.id;
+        console.log("🧵 Created AI Thread:", threadId);
+
+        await axios.post(
+            `https://api.openai.com/v1/threads/${threadId}/messages`,
+            {
+                role: "user",
+                content: `Analyze this Amazon PPC campaign data and provide actionable insights:\n${JSON.stringify(summary, null, 2)}`
+            },
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+
+        console.log("📩 AI received PPC data. Waiting for insights...");
+
+        const runResponse = await axios.post(
+            `https://api.openai.com/v1/threads/${threadId}/runs`,
+            { assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo" },
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+
+        const runId = runResponse.data.id;
+        console.log("🚀 AI Processing Started:", runId);
+
+        // 🔄 Poll for AI response
+        let runStatus = "in_progress";
+        while (runStatus === "in_progress") {
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 sec
+            const statusResponse = await axios.get(
+                `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
+                {
+                    headers: {
+                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                        "Content-Type": "application/json",
+                        "OpenAI-Beta": "assistants=v2"
+                    }
+                }
+            );
+            runStatus = statusResponse.data.status;
         }
 
-        // Proceed with AI processing...
-        res.json({ message: "Data received successfully" });
+        console.log("📥 AI Processing Complete. Retrieving Insights...");
+
+        // Get AI messages
+        const messagesResponse = await axios.get(
+            `https://api.openai.com/v1/threads/${threadId}/messages`,
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+
+        const aiMessages = messagesResponse.data.data
+            .filter(msg => msg.role === "assistant")
+            .map(msg => msg.content)
+            .flat(); // Flatten responses
+
+        const aiTextResponses = aiMessages.map(content => {
+            if (Array.isArray(content)) {
+                return content.map(c => c.text?.value || "").join("\n");
+            }
+            return content.text?.value || "";
+        }).join("\n");
+
+        console.log("💡 AI Insights:", aiTextResponses);
+
+        res.json({ insights: aiTextResponses });
 
     } catch (error) {
-        console.error("❌ Server Processing Error:", error);
-        res.status(500).json({ error: "AI processing failed." });
+        console.error("❌ AI Processing Error:", error.response ? error.response.data : error.message);
+        res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
+
 
 
 
