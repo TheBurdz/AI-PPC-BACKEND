@@ -36,7 +36,7 @@ app.post('/analyze-ppc', async (req, res) => {
         const runResponse = await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/runs`,
             {
-                assistant_id: "g-67d0cbfcf9488191afeb8bf44673fb55"
+                assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo"
             },
             {
                 headers: {
