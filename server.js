@@ -117,8 +117,6 @@ app.post('/chat', async (req, res) => {
 
 const conversationThreads = {}; // Store thread IDs by user session
 
-const conversationThreads = {}; // Store thread IDs per user session
-
 app.post('/analyze-ppc', async (req, res) => {
     try {
         const { summary, userId } = req.body;
