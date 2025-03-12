@@ -34,6 +34,7 @@ app.post('/analyze-ppc', async (req, res) => {
                 headers: {
                     "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
                     "Content-Type": "application/json"
+                    "OpenAI-Beta": "assistants=v2"  // ✅ Required for Assistants API
                 }
             }
         );
