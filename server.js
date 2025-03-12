@@ -13,7 +13,19 @@ app.use(cors({
     allowedHeaders: ["Content-Type"]
 }));
 
-app.use(express.json());
+app.use(express.json()); // Ensure JSON body parsing
+
+app.post("/chat", (req, res) => {
+    try {
+        let userMessage = req.body.userMessage;
+        let response = processChat(userMessage); // Replace with actual AI logic
+        res.json({ response });
+    } catch (error) {
+        console.error("Server Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
 
 app.post('/analyze-ppc', async (req, res) => {
     try {
