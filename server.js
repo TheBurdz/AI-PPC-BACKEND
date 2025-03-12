@@ -21,11 +21,11 @@ app.post('/analyze-ppc', async (req, res) => {
         const ppcData = req.body;
 
         const openAIResponse = await axios.post(
-            'https://api.openai.com/v1/chat/completions',
+            'https://api.openai.com/v1/assistants/asst_fpGZKkTQYwZ94o0DxGAm89mo/messages',
             {
                 model: "gpt-4o",
                 messages: [
-                    { role: "system", content: "You are an expert Amazon PPC strategist." },
+                    { role: "system", content: "You are a specialized AI for Amazon PPC analysis." },
                     { role: "user", content: `Analyze this PPC campaign data and provide insights: ${JSON.stringify(ppcData)}` }
                 ],
                 temperature: 0.7
@@ -45,6 +45,7 @@ app.post('/analyze-ppc', async (req, res) => {
         res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
+
 
 
 // 🔹 Use Render’s Dynamic Port
