@@ -15,16 +15,21 @@ app.use(cors({
 
 app.use(express.json()); // Ensure JSON body parsing
 
-app.post("/chat", (req, res) => {
+app.post("/chat", async (req, res) => {
     try {
-        let userMessage = req.body.userMessage;
-        let response = processChat(userMessage); // Replace with actual AI logic
-        res.json({ response });
+        const userMessage = req.body.userMessage;
+        console.log(`💬 Received user message: "${userMessage}"`);
+
+        const aiResponse = await processChat(userMessage);
+        console.log(`🧠 AI Response: "${aiResponse}"`);
+
+        res.json({ response: aiResponse });
     } catch (error) {
-        console.error("Server Error:", error);
+        console.error("❌ Server Error:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
+
 
 
 app.post('/analyze-ppc', async (req, res) => {
@@ -133,3 +138,23 @@ app.post('/analyze-ppc', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`✅ AI PPC Backend is running on port ${PORT}`);
 });
+
+const axios = require("axios");
+
+// 🔹 AI Chat Processing Function
+async function processChat(userMessage) {
+    try {
+        const response = await axios.post("https://api.openai.com/v1/chat/completions", {
+            model: "gpt-4",  // Adjust based on your AI model
+            messages: [{ role: "user", content: userMessage }],
+            max_tokens: 100
+        }, {
+            headers: { "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`, "Content-Type": "application/json" }
+        });
+
+        return response.data.choices[0].message.content;
+    } catch (error) {
+        console.error("❌ AI API Error:", error.response?.data || error.message);
+        return "⚠️ AI failed to process your request. Please try again later.";
+    }
+}
