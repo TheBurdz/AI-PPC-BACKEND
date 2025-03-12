@@ -7,7 +7,7 @@ const app = express();
 const PORT = process.env.PORT || 10000; // Default to port 10000 if not set
 
 app.use(express.json());
-app.use(cors());
+app.use(cors({ origin: "*" }));
 
 app.post('/analyze-ppc', async (req, res) => {
     try {
