@@ -19,16 +19,9 @@ const ASSISTANT_ID = "asst_fpGZKkTQYwZ94o0DxGAm89mo"; // Replace with your actua
 // ✅ Analyze PPC Data (With Memory)
 app.post('/analyze-ppc', async (req, res) => {
     try {
-        const { userId, summary } = req.body;
+        const ppcData = req.body;
 
-        if (!userId || !summary) {
-            return res.status(400).json({ error: "Missing required data." });
-        }
-
-        console.log("📡 Received PPC Data for Analysis:", JSON.stringify(summary, null, 2));
-
-        // 🧠 Send data to OpenAI Assistant – create a new thread each time for now
-        // (If you want to store and reuse a thread per user, you could store it in a userThreads object.)
+        // Step 1: Create a new thread
         const threadResponse = await axios.post(
             'https://api.openai.com/v1/threads',
             {},
@@ -40,15 +33,14 @@ app.post('/analyze-ppc', async (req, res) => {
                 }
             }
         );
-        const threadId = threadResponse.data.id;
-        console.log("🧵 Created AI Thread:", threadId);
+        const threadId = threadResponse.data.id; // ✅ Store thread ID
 
-        // Send PPC Data as a message to the thread
+        // Step 2: Add a message to the thread
         await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
                 role: "user",
-                content: `You are a very advanced Amazon PPC Specialist. Using the following PPC data, provide a deep analysis with actionable insights:\n${JSON.stringify(summary, null, 2)}`
+                content: `Analyze this PPC campaign data and provide insights: ${JSON.stringify(ppcData)}`
             },
             {
                 headers: {
@@ -59,61 +51,24 @@ app.post('/analyze-ppc', async (req, res) => {
             }
         );
 
-        console.log("📩 AI received PPC data. Attempting to start an AI run...");
-
-        let runId;
-        try {
-            // Try to start a new run
-            const runResponse = await axios.post(
-                `https://api.openai.com/v1/threads/${threadId}/runs`,
-                { assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo" },
-                {
-                    headers: {
-                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "OpenAI-Beta": "assistants=v2"
-                    }
+        // Step 3: Run the Assistant on the thread
+        const runResponse = await axios.post(
+            `https://api.openai.com/v1/threads/${threadId}/runs`,
+            { assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo" },
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
                 }
-            );
-            runId = runResponse.data.id;
-            console.log("🚀 AI Processing Started, new runId:", runId);
-        } catch (error) {
-            // If error message indicates an active run, get that run's id
-            if (
-                error.response &&
-                error.response.data &&
-                error.response.data.error &&
-                error.response.data.error.message &&
-                error.response.data.error.message.includes("already has an active run")
-            ) {
-                console.warn("⚠️ Active run already exists. Retrieving active run id...");
-                const runsResponse = await axios.get(
-                    `https://api.openai.com/v1/threads/${threadId}/runs`,
-                    {
-                        headers: {
-                            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                            "Content-Type": "application/json",
-                            "OpenAI-Beta": "assistants=v2"
-                        }
-                    }
-                );
-                // Find the active run in the list
-                const activeRun = runsResponse.data.data.find(r => r.status === "in_progress");
-                if (activeRun) {
-                    runId = activeRun.id;
-                    console.log("🚀 Using existing active runId:", runId);
-                } else {
-                    throw error;
-                }
-            } else {
-                throw error;
             }
-        }
+        );
 
-        // Poll for AI run completion
+        const runId = runResponse.data.id;
         let runStatus = "in_progress";
+
         while (runStatus === "in_progress") {
-            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+            await new Promise(resolve => setTimeout(resolve, 2000));
             const statusResponse = await axios.get(
                 `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
                 {
@@ -125,12 +80,9 @@ app.post('/analyze-ppc', async (req, res) => {
                 }
             );
             runStatus = statusResponse.data.status;
-            console.log(`🔄 Run Status: ${runStatus}`);
         }
 
-        console.log("📥 AI Processing Complete. Retrieving insights...");
-
-        // Retrieve messages from the thread
+        // Step 5: Retrieve Messages from the Thread
         const messagesResponse = await axios.get(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
@@ -154,11 +106,11 @@ app.post('/analyze-ppc', async (req, res) => {
             return content.text?.value || "";
         }).join("\n");
 
-        console.log("💡 AI Insights:", aiTextResponses);
-        res.json({ insights: aiTextResponses });
+        // ✅ Return insights AND thread ID
+        res.json({ insights: aiTextResponses, threadId });
 
     } catch (error) {
-        console.error("❌ Error in AI Processing:", error.response ? error.response.data : error.message);
+        console.error("❌ AI Processing Error:", error.response ? error.response.data : error.message);
         res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
