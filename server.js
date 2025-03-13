@@ -17,61 +17,131 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ASSISTANT_ID = "asst_fpGZKkTQYwZ94o0DxGAm89mo"; // Replace with your actual Assistant ID
 
 // ✅ Analyze PPC Data (With Memory)
-app.post("/analyze-ppc", async (req, res) => {
+app.post('/analyze-ppc', async (req, res) => {
     try {
         const { userId, summary } = req.body;
 
         if (!userId || !summary) {
-            return res.status(400).json({ error: "Missing userId or summary data." });
+            return res.status(400).json({ error: "Missing required data." });
         }
 
-        // Check if user already has a thread
-        let threadId = userThreads[userId];
+        console.log("📡 Received PPC Data for Analysis:", JSON.stringify(summary, null, 2));
 
-        // ✅ Step 1: Create a new thread if one doesn't exist
-        if (!threadId) {
-            const threadResponse = await axios.post(
-                "https://api.openai.com/v1/threads",
-                {},
-                { headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" } }
-            );
-            threadId = threadResponse.data.id;
-            userThreads[userId] = threadId; // Store the thread ID
-        }
+        // 🧠 Send data to OpenAI Assistant – create a new thread each time for now
+        // (If you want to store and reuse a thread per user, you could store it in a userThreads object.)
+        const threadResponse = await axios.post(
+            'https://api.openai.com/v1/threads',
+            {},
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+        const threadId = threadResponse.data.id;
+        console.log("🧵 Created AI Thread:", threadId);
 
-        // ✅ Step 2: Send PPC Data as Initial Message
+        // Send PPC Data as a message to the thread
         await axios.post(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
-            { role: "user", content: `Analyze this PPC campaign data and provide insights: ${JSON.stringify(summary)}` },
-            { headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" } }
+            {
+                role: "user",
+                content: `You are a very advanced Amazon PPC Specialist. Using the following PPC data, provide a deep analysis with actionable insights:\n${JSON.stringify(summary, null, 2)}`
+            },
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
         );
 
-        // ✅ Step 3: Run the Assistant on the thread
-        const runResponse = await axios.post(
-            `https://api.openai.com/v1/threads/${threadId}/runs`,
-            { assistant_id: ASSISTANT_ID },
-            { headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" } }
-        );
-        const runId = runResponse.data.id;
+        console.log("📩 AI received PPC data. Attempting to start an AI run...");
 
-        // ✅ Step 4: Poll for Completion
+        let runId;
+        try {
+            // Try to start a new run
+            const runResponse = await axios.post(
+                `https://api.openai.com/v1/threads/${threadId}/runs`,
+                { assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo" },
+                {
+                    headers: {
+                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                        "Content-Type": "application/json",
+                        "OpenAI-Beta": "assistants=v2"
+                    }
+                }
+            );
+            runId = runResponse.data.id;
+            console.log("🚀 AI Processing Started, new runId:", runId);
+        } catch (error) {
+            // If error message indicates an active run, get that run's id
+            if (
+                error.response &&
+                error.response.data &&
+                error.response.data.error &&
+                error.response.data.error.message &&
+                error.response.data.error.message.includes("already has an active run")
+            ) {
+                console.warn("⚠️ Active run already exists. Retrieving active run id...");
+                const runsResponse = await axios.get(
+                    `https://api.openai.com/v1/threads/${threadId}/runs`,
+                    {
+                        headers: {
+                            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                            "Content-Type": "application/json",
+                            "OpenAI-Beta": "assistants=v2"
+                        }
+                    }
+                );
+                // Find the active run in the list
+                const activeRun = runsResponse.data.data.find(r => r.status === "in_progress");
+                if (activeRun) {
+                    runId = activeRun.id;
+                    console.log("🚀 Using existing active runId:", runId);
+                } else {
+                    throw error;
+                }
+            } else {
+                throw error;
+            }
+        }
+
+        // Poll for AI run completion
         let runStatus = "in_progress";
         while (runStatus === "in_progress") {
             await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
             const statusResponse = await axios.get(
                 `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
-                { headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" } }
+                {
+                    headers: {
+                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                        "Content-Type": "application/json",
+                        "OpenAI-Beta": "assistants=v2"
+                    }
+                }
             );
             runStatus = statusResponse.data.status;
+            console.log(`🔄 Run Status: ${runStatus}`);
         }
 
-        // ✅ Step 5: Retrieve Messages from the Thread
+        console.log("📥 AI Processing Complete. Retrieving insights...");
+
+        // Retrieve messages from the thread
         const messagesResponse = await axios.get(
             `https://api.openai.com/v1/threads/${threadId}/messages`,
-            { headers: { "Authorization": `Bearer ${OPENAI_API_KEY}`, "Content-Type": "application/json", "OpenAI-Beta": "assistants=v2" } }
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
         );
 
-        // Extract AI response properly
         const aiMessages = messagesResponse.data.data
             .filter(msg => msg.role === "assistant")
             .map(msg => msg.content)
@@ -84,6 +154,7 @@ app.post("/analyze-ppc", async (req, res) => {
             return content.text?.value || "";
         }).join("\n");
 
+        console.log("💡 AI Insights:", aiTextResponses);
         res.json({ insights: aiTextResponses });
 
     } catch (error) {
@@ -91,6 +162,7 @@ app.post("/analyze-ppc", async (req, res) => {
         res.status(500).json({ error: "AI processing failed.", details: error.response ? error.response.data : error.message });
     }
 });
+
 
 // ✅ Handle Follow-Up Messages (Chat Feature)
 app.post("/chat", async (req, res) => {
