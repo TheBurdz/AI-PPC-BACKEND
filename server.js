@@ -63,7 +63,7 @@ app.post('/analyze-ppc', async (req, res) => {
             `https://api.openai.com/v1/threads/${threadId}/messages`,
             {
                 role: "user",
-                content: `Analyze this Amazon PPC campaign data and provide actionable insights:\n${JSON.stringify(summary, null, 2)}`
+                content: `You are a very advanced Amazon PPC Specialist. Possibly the best in the world. Using this supplied Amazon PPC Data provide a deep overview of the performance; calling out good and poor performance metrics and provide actionable insights:\n${JSON.stringify(summary, null, 2)}`
             },
             {
                 headers: {
