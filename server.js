@@ -15,101 +15,18 @@ app.use(cors({
 
 app.use(express.json()); // Ensure JSON body parsing
 
-app.post('/chat', async (req, res) => {
+app.post("/chat", async (req, res) => {
     try {
-        const { userId, userMessage } = req.body;
+        const userMessage = req.body.userMessage;
+        console.log(`💬 Received user message: "${userMessage}"`);
 
-        if (!userId || !userMessage) {
-            return res.status(400).json({ error: "Missing userId or userMessage" });
-        }
+        const aiResponse = await processChat(userMessage);
+        console.log(`🧠 AI Response: "${aiResponse}"`);
 
-        // Retrieve the existing thread ID
-        const threadId = conversationThreads[userId];
-
-        if (!threadId) {
-            return res.status(400).json({ error: "No active thread. Start with PPC analysis first." });
-        }
-
-        // Add user message to the existing thread
-        await axios.post(
-            `https://api.openai.com/v1/threads/${threadId}/messages`,
-            {
-                role: "user",
-                content: userMessage
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
-
-        // Run the Assistant again
-        const runResponse = await axios.post(
-            `https://api.openai.com/v1/threads/${threadId}/runs`,
-            {
-                assistant_id: "asst_fpGZKkTQYwZ94o0DxGAm89mo"
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
-
-        const runId = runResponse.data.id;
-
-        // Poll for completion
-        let runStatus = "in_progress";
-        while (runStatus === "in_progress") {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            const statusResponse = await axios.get(
-                `https://api.openai.com/v1/threads/${threadId}/runs/${runId}`,
-                {
-                    headers: {
-                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                        "Content-Type": "application/json",
-                        "OpenAI-Beta": "assistants=v2"
-                    }
-                }
-            );
-            runStatus = statusResponse.data.status;
-        }
-
-        // Retrieve messages from the thread
-        const messagesResponse = await axios.get(
-            `https://api.openai.com/v1/threads/${threadId}/messages`,
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
-
-        // Extract AI response
-        const aiMessages = messagesResponse.data.data
-            .filter(msg => msg.role === "assistant")
-            .map(msg => msg.content)
-            .flat();
-
-        const aiTextResponses = aiMessages.map(content => {
-            if (Array.isArray(content)) {
-                return content.map(c => c.text?.value || "").join("\n");
-            }
-            return content.text?.value || "";
-        }).join("\n");
-
-        res.json({ response: aiTextResponses });
-
+        res.json({ response: aiResponse });
     } catch (error) {
-        console.error("❌ Error in Chat Processing:", error.response ? error.response.data : error.message);
-        res.status(500).json({ error: "AI chat processing failed.", details: error.response ? error.response.data : error.message });
+        console.error("❌ Server Error:", error);
+        res.status(500).json({ error: "Internal Server Error" });
     }
 });
 
