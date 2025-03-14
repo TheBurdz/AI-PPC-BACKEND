@@ -83,31 +83,37 @@ app.post('/analyze-ppc', async (req, res) => {
         }
 
         // Step 5: Retrieve Messages from the Thread
-        const messagesResponse = await axios.get(
-            `https://api.openai.com/v1/threads/${threadId}/messages`,
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
+        // ✅ Retrieve Messages from OpenAI
+const messagesResponse = await axios.get(
+    `https://api.openai.com/v1/threads/${threadId}/messages`,
+    {
+        headers: {
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v2"
+        }
+    }
+);
 
-        const aiMessages = messagesResponse.data.data
-            .filter(msg => msg.role === "assistant")
-            .map(msg => msg.content)
-            .flat();
+// ✅ Extract Only the Latest AI Message
+const aiMessages = messagesResponse.data.data.filter(msg => msg.role === "assistant");
 
-        const aiTextResponses = aiMessages.map(content => {
-            if (Array.isArray(content)) {
-                return content.map(c => c.text?.value || "").join("\n");
-            }
-            return content.text?.value || "";
-        }).join("\n");
+let latestAiResponse = "No AI response available.";
+if (aiMessages.length > 0) {
+    const lastMessage = aiMessages[aiMessages.length - 1];
 
-        // ✅ Return insights AND thread ID
-        res.json({ insights: aiTextResponses, threadId });
+    // ✅ Extract only the text from the last response
+    if (Array.isArray(lastMessage.content)) {
+        latestAiResponse = lastMessage.content.map(c => c.text?.value || "").join("\n");
+    } else {
+        latestAiResponse = lastMessage.content.text?.value || "";
+    }
+}
+
+console.log("✅ Sending Latest AI Response:", latestAiResponse);
+res.json({ insights: latestAiResponse, threadId });
+
+        // res.json({ insights: aiTextResponses, threadId });
 
     } catch (error) {
         console.error("❌ AI Processing Error:", error.response ? error.response.data : error.message);
