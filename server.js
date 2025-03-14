@@ -82,32 +82,29 @@ app.post('/analyze-ppc', async (req, res) => {
             runStatus = statusResponse.data.status;
         }
 
-        // Step 5: Retrieve Messages from the Thread
-        const messagesResponse = await axios.get(
-            `https://api.openai.com/v1/threads/${threadId}/messages`,
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    "Content-Type": "application/json",
-                    "OpenAI-Beta": "assistants=v2"
-                }
-            }
-        );
+        // ✅ Step 5: Retrieve Messages from the Thread
+const messagesResponse = await axios.get(
+    `https://api.openai.com/v1/threads/${threadId}/messages`,
+    {
+        headers: {
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+            "OpenAI-Beta": "assistants=v2"
+        }
+    }
+);
 
-        const aiMessages = messagesResponse.data.data
-            .filter(msg => msg.role === "assistant")
-            .map(msg => msg.content)
-            .flat();
+// ✅ Extract only the most recent AI response
+const aiMessages = messagesResponse.data.data
+    .filter(msg => msg.role === "assistant")
+    .map(msg => msg.content)
+    .flat(); // Flatten in case of multiple responses
 
-        const aiTextResponses = aiMessages.map(content => {
-            if (Array.isArray(content)) {
-                return content.map(c => c.text?.value || "").join("\n");
-            }
-            return content.text?.value || "";
-        }).join("\n");
+// ✅ Only get the last AI-generated message
+const latestAiResponse = aiMessages.length > 0 ? aiMessages[aiMessages.length - 1] : "No response available.";
 
-        // ✅ Return insights AND thread ID
-        res.json({ insights: aiTextResponses, threadId });
+res.json({ insights: latestAiResponse });
+
 
     } catch (error) {
         console.error("❌ AI Processing Error:", error.response ? error.response.data : error.message);
