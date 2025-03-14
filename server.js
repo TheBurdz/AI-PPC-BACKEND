@@ -111,7 +111,7 @@ if (aiMessages.length > 0) {
 }
 
 console.log("✅ Sending Latest AI Response:", latestAiResponse);
-res.json({ insights: latestAiResponse, threadId });
+res.json({ insights: latestAiResponse });
 
         // res.json({ insights: aiTextResponses, threadId });
 
