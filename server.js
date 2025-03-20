@@ -16,6 +16,27 @@ const userThreads = {}; // Stores thread IDs per user
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ASSISTANT_ID = "asst_fpGZKkTQYwZ94o0DxGAm89mo"; // Replace with your actual Assistant ID
 
+app.post('/create-thread', async (req, res) => {
+    try {
+        const threadResponse = await axios.post(
+            'https://api.openai.com/v1/threads', // OpenAI API
+            {},
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+        res.json({ threadId: threadResponse.data.id });
+    } catch (error) {
+        console.error("❌ Error creating AI thread:", error.response?.data || error.message);
+        res.status(500).json({ error: "AI thread creation failed." });
+    }
+});
+
+
 app.post("/start-thread", async (req, res) => {
     try {
         const { userId } = req.body;
