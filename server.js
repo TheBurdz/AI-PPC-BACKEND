@@ -16,6 +16,38 @@ const userThreads = {}; // Stores thread IDs per user
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const ASSISTANT_ID = "asst_fpGZKkTQYwZ94o0DxGAm89mo"; // Replace with your actual Assistant ID
 
+app.post("/start-thread", async (req, res) => {
+    try {
+        const { userId } = req.body;
+        if (!userId) {
+            return res.status(400).json({ error: "Missing userId" });
+        }
+
+        // Call OpenAI API to create a thread
+        const threadResponse = await axios.post(
+            "https://api.openai.com/v1/threads",
+            {},
+            {
+                headers: {
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    "Content-Type": "application/json",
+                    "OpenAI-Beta": "assistants=v2"
+                }
+            }
+        );
+
+        const threadId = threadResponse.data.id;
+        console.log("✅ New AI thread created:", threadId);
+
+        res.json({ threadId });
+
+    } catch (error) {
+        console.error("❌ Error creating AI thread:", error.response?.data || error.message);
+        res.status(500).json({ error: "AI thread creation failed.", details: error.response?.data || error.message });
+    }
+});
+
+
 // ✅ Analyze PPC Data (With Memory)
 app.post('/analyze-ppc', async (req, res) => {
     try {
